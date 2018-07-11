@@ -8,6 +8,7 @@ end
 gem 'mongoid'
 gem 'elasticsearch'
 gem 'elasticsearch-rails'
+gem 'elasticsearch-model'
 
 gem 'sqlite3'
 gem 'pry-rails'
