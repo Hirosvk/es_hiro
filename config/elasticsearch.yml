@@ -1,0 +1,14 @@
+development: &default
+  host: 'http://localhost:9200'
+  transport_options:
+    request:
+      timeout: 300
+test:
+  <<: *default
+staging:
+  <<: *default
+production:
+  host: 'http://10.0.0.32:9200'
+  transport_options:
+    request:
+      timeout: 300

@@ -27,15 +27,12 @@ class Account
 
   # Account.search(query: {match: {firstname: 'john'}})
 
-  def self.serach_a
+  def self.search_by_firstname(name)
     # this is how you do a multiple field query
     self.search(query: {
       match: {
         firstname: {
-          query: "Amber"
-        },
-        gender: {
-          queyr: "F"
+          query: name
         }
       }
     })
