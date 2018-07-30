@@ -33,7 +33,7 @@ class Account
       match: {
         firstname: {
           query: "Amber"
-        }
+        },
         gender: {
           queyr: "F"
         }
