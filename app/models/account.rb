@@ -17,8 +17,8 @@ class Account
 
   # run Account.import && self.create_indexes
 
-  settings index: {number_of_shards: 1} do
-    mappings dynamic: 'false' do
+  settings index: {number_of_shards: 1, number_of_replicas: 2} do
+    mappings dynamic: false do
       indexes :firstname, type: 'text'
       indexes :lastname, type: 'text'
       indexes :gender, type: 'text'
@@ -26,6 +26,17 @@ class Account
   end
 
   # Account.search(query: {match: {firstname: 'john'}})
+
+  def self.search_by_lastname(name)
+    # this is how you do a multiple field query
+    self.search(query: {
+      match: {
+        lastname: {
+          query: name
+        }
+      }
+    })
+  end
 
   def self.search_by_firstname(name)
     # this is how you do a multiple field query
@@ -40,6 +51,9 @@ class Account
 
   def as_indexed_json
     # a necessary method to run self.import
+    # with dynamic: false, it should just ignore extra fields,
+    # however, when extra fields that are not part of settings declaration are present
+    # it will not index the entire document.
     self.as_json(only: [:firstname, :lastname, :gender])
   end
 
