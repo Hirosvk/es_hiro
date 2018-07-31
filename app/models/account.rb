@@ -19,9 +19,9 @@ class Account
 
   settings index: {number_of_shards: 1} do
     mappings dynamic: 'false' do
-      indexes :firstname, type: 'string'
-      indexes :lastname, type: 'string'
-      indexes :gender, type: 'string'
+      indexes :firstname, type: 'text'
+      indexes :lastname, type: 'text'
+      indexes :gender, type: 'text'
     end
   end
 
