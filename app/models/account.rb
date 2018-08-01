@@ -17,47 +17,43 @@ class Account
 
   # run Account.import && self.create_indexes
 
-  settings index: {number_of_shards: 1, number_of_replicas: 2} do
+  settings index: {number_of_shards: 1, number_of_replicas: 1} do
+    # defualt is dynamic: true, which index all new fields;
+    # However, even with dynamic: false, elasticsearch indexes all the fields given by as_indexed_json
+    # It seems to respect as_indexed_json data more than what's specified here.
     mappings dynamic: false do
       indexes :firstname, type: 'text'
       indexes :lastname, type: 'text'
       indexes :gender, type: 'text'
     end
+    # type: 'string' is now deprecated.
   end
 
   # Account.search(query: {match: {firstname: 'john'}})
 
-  def self.search_by_lastname(name)
+  def self.search_by_field_name(field_name, value)
     # this is how you do a multiple field query
-    self.search(query: {
+    search(query: {
       match: {
-        lastname: {
-          query: name
+        field_name => {
+          query: value
         }
       }
     })
   end
 
-  def self.search_by_firstname(name)
-    # this is how you do a multiple field query
-    self.search(query: {
-      match: {
-        firstname: {
-          query: name
-        }
-      }
-    })
+  def self.method_missing(name, *args, &block)
+    _name = name.to_s.match(/(search_by_)(.*)/)
+    if _name && fields.include?(_name[2])
+      search_by_field_name(_name[2], args[0])
+    else
+      raise NoMethodError, "Method '#{name}' does not exist for the class '#{self.to_s}'."
+    end
   end
 
   def as_indexed_json
-    # a necessary method to run self.import
-    # with dynamic: false, it should just ignore extra fields,
-    # however, when extra fields that are not part of settings declaration are present
-    # it will not index the entire document.
+    # a necessary method to run self.import.
+    # make sure that this does not include _id field; it won't index
     self.as_json(only: [:firstname, :lastname, :gender])
   end
-
-  # can Solr do multi-index search? not sure...
-  # documentation is poor with limited example on Elasticsearch, having to guess what actual api style like
-  # index boost exist in Elasticsearch, not sure how scoping translates...
 end
