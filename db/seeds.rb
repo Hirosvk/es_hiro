@@ -2009,5 +2009,6 @@ accounts = [
 {"account_number":995,"balance":21153,"firstname":"Phelps","lastname":"Parrish","age":25,"gender":"M","address":"666 Miller Place","employer":"Pearlessa","email":"phelpsparrish@pearlessa.com","city":"Brecon","state":"ME"}]
 
 accounts.each do |account|
+  account.merge!(bio: LiterateRandomizer.sentence)
   Account.create!(account)
 end

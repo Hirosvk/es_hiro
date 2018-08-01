@@ -14,9 +14,15 @@ class Account
   field :email, type: String
   field :city, type: String
   field :state, type: String
+  field :bio, type: String
 
-  # run Account.import && self.create_indexes
+  # self.__elasticsearch__.delete_index!
+  # self.__elasticsearch__.create_index!
+  # self.import
 
+  # we need to run ES instances at least the number of replicas
+  # i.e. with 1 replicas -> 2 ES nodes
+  # shards number cannot be reconfigured without reindexing
   settings index: {number_of_shards: 1, number_of_replicas: 1} do
     # defualt is dynamic: true, which index all new fields;
     # However, even with dynamic: false, elasticsearch indexes all the fields given by as_indexed_json
@@ -25,6 +31,7 @@ class Account
       indexes :firstname, type: 'text'
       indexes :lastname, type: 'text'
       indexes :gender, type: 'text'
+      indexes :bio, type: 'text'
     end
     # type: 'string' is now deprecated.
   end
@@ -47,13 +54,13 @@ class Account
     if _name && fields.include?(_name[2])
       search_by_field_name(_name[2], args[0])
     else
-      raise NoMethodError, "Method '#{name}' does not exist for the class '#{self.to_s}'."
+      super(name, *args, &block)
     end
   end
 
   def as_indexed_json
     # a necessary method to run self.import.
-    # make sure that this does not include _id field; it won't index
-    self.as_json(only: [:firstname, :lastname, :gender])
+    # make sure that this does not include _id field; it won't get indexed
+    self.as_json(only: [:firstname, :lastname, :gender, :bio])
   end
 end

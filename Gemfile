@@ -13,6 +13,8 @@ gem 'elasticsearch-model'
 gem 'sqlite3'
 gem 'pry-rails'
 
+gem 'literate_randomizer'
+
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 gem 'rails', '~> 5.0.7'
 # Use Puma as the app server
