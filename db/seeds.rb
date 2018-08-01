@@ -2010,5 +2010,6 @@ accounts = [
 
 accounts.each do |account|
   account.merge!(bio: LiterateRandomizer.sentence)
-  Account.create!(account)
+  acc = Account.create!(account)
+  rand(5).times {Comment.create!(account: acc, body: LiterateRandomizer.paragraph)}
 end

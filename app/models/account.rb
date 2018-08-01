@@ -16,8 +16,22 @@ class Account
   field :state, type: String
   field :bio, type: String
 
+  has_many :comments
+
+#  This is inferred from class name, which will become _type field of the
+#  indexed document. Can be modified (i.e. sharing same index across models)
+#  document_type "account"
+
+  # These operataions do not happen unless setup manually
+  #  https://github.com/elastic/elasticsearch-rails/issues/685
+  after_create  :es_index_document
+  after_update  :es_update_document
+  after_destroy :es_delete_document
+
+  # Refresh entire index
   # self.__elasticsearch__.delete_index!
   # self.__elasticsearch__.create_index!
+  #   (do this before indexing any document so that settings here is respected)
   # self.import
 
   # we need to run ES instances at least the number of replicas
@@ -58,9 +72,31 @@ class Account
     end
   end
 
-  def as_indexed_json
-    # a necessary method to run self.import.
-    # make sure that this does not include _id field; it won't get indexed
-    self.as_json(only: [:firstname, :lastname, :gender, :bio])
+  def as_indexed_json(opts={})
+    # a necessary method for many operations (:import, index_document, etc..)
+    # It needs to take opts
+    # Make sure that this does not include _id field; it won't get indexed
+    # But the same _id IS indexed in ES.
+    self.as_json(opts.merge(only: [:firstname, :lastname, :gender, :bio]))
+  end
+
+  private
+
+  # Take a notice on 'routing' flag, which could speed up query
+
+  # prefixed these method names so that they don't crash with mongoid methods.
+  # (When I used the name :update_document, it overrode mongoids'.)
+
+  # able to take 'opts' argument is important
+  def es_index_document(opts={})
+    __elasticsearch__.index_document(opts)
+  end
+
+  def es_update_document(opts={})
+    __elasticsearch__.update_document(opts)
+  end
+
+  def es_delete_document(opts={})
+    __elasticsearch__.delete_document(opts)
   end
 end
