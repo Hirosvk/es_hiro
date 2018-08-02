@@ -11,12 +11,14 @@ module UniversalTextSearchModel
   #
   # Found an answer here: https://www.elastic.co/blog/index-type-parent-child-join-now-future-in-elasticsearch
   # "Multiple types in the same index really shouldn't be used all that often and one of the few use cases for types is parent child relationships."
+  # In fact, Elasticsearch 6.0.0 or later can have only one _type per index
 
 
   # These operataions do not happen unless setup manually.
   # Elasticsearch::Callbacks takes care of these operations, but the maintainers of the lib seem
   # to be considering removing them and advocating for setting them up manually like this.
   # see https://github.com/elastic/elasticsearch-rails/issues/685
+  # Doing these in asyc using Resque is recommended
     after_create  :es_index_document
     after_update  :es_update_document
     after_destroy :es_delete_document

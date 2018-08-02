@@ -88,9 +88,17 @@ Elasticsearch server (set up 3 servers; see Notes.5):
 			*	miminum_master_nodes = (number of master-eligible nodes / 2 + 1)
 
 
- Next steps:
-   fuzzy match
-   score by updated_at/created_at
-   parent/child index
-   explore 'routing' option when indexing/searching
+		6. parent/child index:
+			The join field shouldn’t be used like joins in a relation database. In Elasticsearch the key to good performance is to de-normalize your data into documents. Each join field, has_child or has_parent query adds a significant tax to your query performance.
+			The only case where the join field makes sense is if your data contains a one-to-many relationship where one entity significantly outnumbers the other entity. 
+
+Next steps:
+	differences between nested vs. array
+		=> starting to think, associations should be in different indices
+	embedded documents
+
+fuzzy match
+score by updated_at/created_at
+pagenation
+explore 'routing' option when indexing/searching
 

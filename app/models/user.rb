@@ -21,8 +21,8 @@ class User
     # It seems to respect what as_indexed_json returns more than what's specified here.
     # ES is supposed to automatically detect types.
       mappings dynamic: false do
-        indexes :firstname, type: 'text'
-        indexes :lastname, type: 'text'
+        indexes :firstname, type: 'keyword'
+        indexes :lastname, type: 'keyword'
         indexes :bio, type: 'text'
       end
     # type: 'string' is now deprecated.
@@ -37,8 +37,10 @@ class User
     # a necessary method for many operations (:import, index_document, etc..)
     # The fields this method returns are indexed in Elasticsearch.
     # It needs to take opts.
-    # ES does not index the document when :_id field is included in this json.
-    # However, it automatically creates :_id field; Haven't quite understood this.
+    # ES ignores the document when :_id field is included in this json.
+    # (Though it automatically creates :_id field, and it's indexed in ES)
+    # On their github readme, when they use SQL, they include :id, while one their
+    # mongoid example, they explicitly exclude :_id & :id fields, with no explanation.
     self.as_json(opts.merge(only: [:firstname, :lastname, :bio]))
   end
 
