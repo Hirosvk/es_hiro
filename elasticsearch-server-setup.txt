@@ -1,0 +1,82 @@
+Web server:
+	EC2 with Amazon AMI (ami-0e86606d): t2.micro
+	ruby
+		installed rvm single mode, added rvm to path
+		gem install bundler (after rvm!)
+
+	mongo
+		sudo yum install mongo-org
+		sudo service mongod start
+
+	node (rails' uglifier fails without nodejs)
+		curl -sL https://rpm.nodesource.com/setup_6.x | sudo -E bash -
+
+	Rails config
+		application.rb: Changed from Rails.group to :default, Rails.env (for some reason, :production was not loaded into Rails.group)
+		Rails not loading model on production: run `bin/spring stop` to solve (I did ran a seed on development by accident, would not have been an issue had I not?)
+		'string' option has been deprecated in Elasticsearch! Now only use 'text'
+		Run <Model>.import with force: true option
+
+		specify production elasticsearch server's info in
+
+Elasticsearch server:
+	AWS
+		Amazon AMI (ami-0e86606d): t2.medium; needes some memory capacity
+			this one has 4G memory. t.micro with 0.5GB memory did not work, and recommended at least 2GB.
+		security group: open both ports 9200 (for connection to web server) & 9300 (connections among nodes)
+
+	Elasticsearch install
+		wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.2.tar.gz
+		wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.2.tar.gz.sha512
+		shasum -a 512 -c elasticsearch-6.3.2.tar.gz.sha512
+		tar -xzf elasticsearch-6.3.2.tar.gz
+
+	Java update version
+		encountered java version error
+		wget http://javadl.oracle.com/webapps/download/AutoDL?BundleId=234464_96a7b8442fe848ef90c96a2fad6ed6d1 (this downloads jre1xx package)
+		tar -xzf <downloaded file>
+		mv to /usr/lib/jvm (to live with other javas)
+		sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/jre1.8.0_181/bin/java 1
+			(<link> <name> <path> <priority>)
+		sudo update-alternatives --config java (to choose the new one)
+
+		java version error disappears, memory issue arise
+		check memory usage with `free -m`
+		edit jvm.options to set the correct memory usage (seems that at least 2GB is recommended)
+
+	Elasticsearch: config/elasticsearch.yml
+		host: _site_ (this refers to any local ip address); or local ip of the server
+		minimum_master_nodes: 2 (see below notes about this)
+		Add other nodes' local ip's to discovery.zen.ping.unicast.hosts
+
+	System settings for Elasticsearch
+		after chaning host binding to _site_, some issues started to happen (This lets elasticsearch run on production mode).
+			file descriptor: error that the open file descriptor value is too low (was 1024). Required to change to at least 65536.
+			Also needed to change vm.max_map_count value
+				`sudo su`
+				`ulimit -a`(just to check)
+				`ulimit -n 65536`
+				`sysctl -w vm.max_map_count=262144`
+				`su <user>`
+			then run elasticsearch. Needs to switch from the user to user-user, then to user
+			b/c elasticsearch cannot be run from super user, and ulimit setting is not saved when simiply exits su.
+
+
+		Notes:
+			- works fine with 'host: _site_', which points to local network()
+			  but I don't understand why manually set 'publish_host: <own ip>', and 'bind_host: 10.0.0.0' doesn't work
+			- 'yellow' status on single-node instance in production is normal; needs to create at least one replicas to turn it green
+			- no need for EC2 plugin, zen discovery (that comes out of the box) is fine.
+			- 50GB of data per shard in a index is a good idea https://discuss.elastic.co/t/too-big-a-shard-vs-too-many-shards/75889
+			- Elasticsearch doesn't have master/slave replication for data. See
+			  minimum_master_nodes for how cluster state uses it. Data is written first
+			  to a "primary" shard and then written to replica shards but all shard that
+			  write do about the same amount of work. Elasticsearch moves shards around
+			  the cluster on its own and decides which copy is primary all on its own.
+			  For the most part forcing search traffic to the replica shards isn't a
+			  thing you do.
+
+			- Did an experiment on node numbers:
+				2 instances with master eligible, recommended to minimum_master_nodes is 2 to avoid 'split brain'
+				=> when one goes down, the whole cluster goes down.
+			  3 instances, with minimum_master_nodes is 2 => can handle one server down (even if it's master).
