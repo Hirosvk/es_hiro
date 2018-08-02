@@ -1,4 +1,4 @@
-Web server (Rails - puma / Mongo):
+Web server (Rails/Mongo):
 	EC2 with Amazon AMI (ami-0e86606d): t2.micro
 	ruby
 		installed rvm single mode, added rvm to path
@@ -20,10 +20,10 @@ Web server (Rails - puma / Mongo):
 		specify production elasticsearch server's info in
 
 Elasticsearch server (set up 3 servers; see Notes.5):
-	AWS
-		Amazon AMI (ami-0e86606d): t2.medium; needes some memory capacity
+	EC2
+		Amazon AMI (ami-0e86606d), t2.medium (b/c ES needes some memory capacity)
 			this one has 4G memory. t.micro with 0.5GB memory did not work, and recommended at least 2GB.
-		security group: open both ports 9200 (for connection to web server) & 9300 (connections among nodes)
+		security group: open both ports 9200 (for connection to web server) & 9300 (connections among nodes) to local access.
 
 	Elasticsearch install
 		wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.2.tar.gz
@@ -41,7 +41,6 @@ Elasticsearch server (set up 3 servers; see Notes.5):
 		sudo update-alternatives --config java (to choose the new one)
 
 		(this only happened when using t2.micro, not relevant if server has sufficient memory)
-			java version error disappears, memory issue arise
 			check memory usage with `free -m`
 			edit jvm.options to set the correct memory usage (seems that at least 2GB is recommended)
 
@@ -66,14 +65,14 @@ Elasticsearch server (set up 3 servers; see Notes.5):
 
 
 	Notes:
-		1.  'yellow' status on single-node instance in production is normal; needs to create at least one replica
-			(and extra node for it) to turn it green
+		1.  The 'yellow' status on single-node instance in production is normal; needs to create at least one replica
+			(and extra node to host it) to turn it green
 
-		2.  no need for EC2 plugin, zen discovery (that comes out of the box) is fine.
+		2.  There is no need for Elasticsearch EC2 plugin, zen discovery (that comes out of the box) is fine.
 
 		3.  50GB of data per shard in a index is a good idea (https://discuss.elastic.co/t/too-big-a-shard-vs-too-many-shards/75889)
 
-		4.  Elasticsearch doesn't have master/slave replication for data. See
+		4.  Excerpt: Elasticsearch doesn't have master/slave replication for data. See
 			minimum_master_nodes for how cluster state uses it. Data is written first
 			to a "primary" shard and then written to replica shards but all shard that
 			write do about the same amount of work. Elasticsearch moves shards around
@@ -81,7 +80,7 @@ Elasticsearch server (set up 3 servers; see Notes.5):
 			For the most part forcing search traffic to the replica shards isn't a
 			thing you do.
 
-		5.  I did an experiment on node numbers. I run one node per server.
+		5.  I did an experiment on node numbers. (I run one node per server.)
 			For 2 master-eligible nodes running in a cluster, it's recommended to set minimum_master_nodes
 			to 2 to avoid 'split brain' situation. However, when I shut down one of them, the whole cluster fails.
 			When I had 3 master-eligible nodes running with minimum_master_nodes set to 2, the cluster

@@ -1,22 +1,15 @@
-class Account
+class User
   include Mongoid::Document
   include Mongoid::Timestamps
   include UniversalTextSearchModel
 
-  field :account_number, type: Integer
-  field :balance, type: Integer
   field :firstname, type: String
   field :lastname, type: String
   field :age, type: Integer
   field :gender, type: String
-  field :address, type: String
-  field :employer, type: String
-  field :email, type: String
-  field :city, type: String
-  field :state, type: String
   field :bio, type: String
 
-  has_many :comments
+  has_many :notes
 
 # we need to run ES instances at least the number of replicas
 # i.e. with 1 replicas -> 2 ES nodes
@@ -30,7 +23,6 @@ class Account
       mappings dynamic: false do
         indexes :firstname, type: 'text'
         indexes :lastname, type: 'text'
-        indexes :gender, type: 'text'
         indexes :bio, type: 'text'
       end
     # type: 'string' is now deprecated.
@@ -38,16 +30,16 @@ class Account
 
 
 #  These are inferred from class name, but can be modified or explicitly defined.
-#    index_name "universal_text_search"
+#    index_name "accounts"
 #    document_type "account" # => becomes _type field of the document in ES
 
   def as_indexed_json(opts={})
     # a necessary method for many operations (:import, index_document, etc..)
-    # What this method returns are indexed in Elasticsearch.
+    # The fields this method returns are indexed in Elasticsearch.
     # It needs to take opts.
     # ES does not index the document when :_id field is included in this json.
-    # However, it automatically creates :_id field
-    self.as_json(opts.merge(only: [:firstname, :lastname, :gender, :bio]))
+    # However, it automatically creates :_id field; Haven't quite understood this.
+    self.as_json(opts.merge(only: [:firstname, :lastname, :bio]))
   end
 
 end

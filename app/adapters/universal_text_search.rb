@@ -3,7 +3,7 @@ class UniversalTextSearch
   # to function properly (it tries to call #find method on the found document).
   # Without them, search itself works fine and it searches all indices, it's only when using
   # #records.
-  SEARCH_CLASSES = [Account, Comment]
+  SEARCH_CLASSES = [User, Note, Resource]
 
   def self.simple_text_search(text, size=10)
     # searches all text fields in all classes (or indices)

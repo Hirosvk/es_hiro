@@ -47,7 +47,7 @@ module UniversalTextSearchModel
     end
 
     def self.reset!
-      __elasticsearch__.delete_index!
+      __elasticsearch__.delete_index! rescue nil
       __elasticsearch__.create_index!
       import
     end
@@ -58,7 +58,7 @@ module UniversalTextSearchModel
 
   # Take a notice on 'routing' flag, which could speed up query
 
-  # I prefixed these method names so that they don't conflict with mongoid methods.
+  # I prefixed these method names with 'es_' so that they don't conflict with mongoid methods.
   # (When I used the name :update_document, for example, it overrode mongoids' and
   # and caused unexpected behavior.)
 
