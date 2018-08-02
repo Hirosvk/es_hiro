@@ -1,4 +1,4 @@
-Web server:
+Web server (Rails - puma / Mongo):
 	EC2 with Amazon AMI (ami-0e86606d): t2.micro
 	ruby
 		installed rvm single mode, added rvm to path
@@ -19,7 +19,7 @@ Web server:
 
 		specify production elasticsearch server's info in
 
-Elasticsearch server:
+Elasticsearch server (set up 3 servers; see Notes.5):
 	AWS
 		Amazon AMI (ami-0e86606d): t2.medium; needes some memory capacity
 			this one has 4G memory. t.micro with 0.5GB memory did not work, and recommended at least 2GB.
@@ -28,11 +28,11 @@ Elasticsearch server:
 	Elasticsearch install
 		wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.2.tar.gz
 		wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.2.tar.gz.sha512
-		shasum -a 512 -c elasticsearch-6.3.2.tar.gz.sha512
+		shasum -a 512 -c elasticsearch-6.3.2.tar.gz.sha512 (should print 'ok' to confirm)
 		tar -xzf elasticsearch-6.3.2.tar.gz
 
 	Java update version
-		encountered java version error
+		ES needs java version higher than 1.8
 		wget http://javadl.oracle.com/webapps/download/AutoDL?BundleId=234464_96a7b8442fe848ef90c96a2fad6ed6d1 (this downloads jre1xx package)
 		tar -xzf <downloaded file>
 		mv to /usr/lib/jvm (to live with other javas)
@@ -40,43 +40,58 @@ Elasticsearch server:
 			(<link> <name> <path> <priority>)
 		sudo update-alternatives --config java (to choose the new one)
 
-		java version error disappears, memory issue arise
-		check memory usage with `free -m`
-		edit jvm.options to set the correct memory usage (seems that at least 2GB is recommended)
+		(this only happened when using t2.micro, not relevant if server has sufficient memory)
+			java version error disappears, memory issue arise
+			check memory usage with `free -m`
+			edit jvm.options to set the correct memory usage (seems that at least 2GB is recommended)
 
 	Elasticsearch: config/elasticsearch.yml
 		host: _site_ (this refers to any local ip address); or local ip of the server
-		minimum_master_nodes: 2 (see below notes about this)
+		minimum_master_nodes: 2 (see Notes.5)
 		Add other nodes' local ip's to discovery.zen.ping.unicast.hosts
+		Left all other as defualt; played around with master eligibility settings, but seems unnecessary (left all to be master-eligible)
 
 	System settings for Elasticsearch
-		after chaning host binding to _site_, some issues started to happen (This lets elasticsearch run on production mode).
+		When host binding is set other than localhost, elasticsearch automatically runs on production mode and I encountered some issues.
 			file descriptor: error that the open file descriptor value is too low (was 1024). Required to change to at least 65536.
-			Also needed to change vm.max_map_count value
+			Also needed to change vm.max_map_count value, it was too low for ES to run.
+			Change these settings in root:
 				`sudo su`
 				`ulimit -a`(just to check)
 				`ulimit -n 65536`
 				`sysctl -w vm.max_map_count=262144`
+			If I exit from root, these settings are not preserved in my user mode. Also, Elasticsearch doesn't allow to be run from root, so...
 				`su <user>`
-			then run elasticsearch. Needs to switch from the user to user-user, then to user
-			b/c elasticsearch cannot be run from super user, and ulimit setting is not saved when simiply exits su.
+			then run elasticsearch.
 
 
-		Notes:
-			- works fine with 'host: _site_', which points to local network()
-			  but I don't understand why manually set 'publish_host: <own ip>', and 'bind_host: 10.0.0.0' doesn't work
-			- 'yellow' status on single-node instance in production is normal; needs to create at least one replicas to turn it green
-			- no need for EC2 plugin, zen discovery (that comes out of the box) is fine.
-			- 50GB of data per shard in a index is a good idea https://discuss.elastic.co/t/too-big-a-shard-vs-too-many-shards/75889
-			- Elasticsearch doesn't have master/slave replication for data. See
-			  minimum_master_nodes for how cluster state uses it. Data is written first
-			  to a "primary" shard and then written to replica shards but all shard that
-			  write do about the same amount of work. Elasticsearch moves shards around
-			  the cluster on its own and decides which copy is primary all on its own.
-			  For the most part forcing search traffic to the replica shards isn't a
-			  thing you do.
+	Notes:
+		1.  'yellow' status on single-node instance in production is normal; needs to create at least one replica
+			(and extra node for it) to turn it green
 
-			- Did an experiment on node numbers:
-				2 instances with master eligible, recommended to minimum_master_nodes is 2 to avoid 'split brain'
-				=> when one goes down, the whole cluster goes down.
-			  3 instances, with minimum_master_nodes is 2 => can handle one server down (even if it's master).
+		2.  no need for EC2 plugin, zen discovery (that comes out of the box) is fine.
+
+		3.  50GB of data per shard in a index is a good idea (https://discuss.elastic.co/t/too-big-a-shard-vs-too-many-shards/75889)
+
+		4.  Elasticsearch doesn't have master/slave replication for data. See
+			minimum_master_nodes for how cluster state uses it. Data is written first
+			to a "primary" shard and then written to replica shards but all shard that
+			write do about the same amount of work. Elasticsearch moves shards around
+			the cluster on its own and decides which copy is primary all on its own.
+			For the most part forcing search traffic to the replica shards isn't a
+			thing you do.
+
+		5.  I did an experiment on node numbers. I run one node per server.
+			For 2 master-eligible nodes running in a cluster, it's recommended to set minimum_master_nodes
+			to 2 to avoid 'split brain' situation. However, when I shut down one of them, the whole cluster fails.
+			When I had 3 master-eligible nodes running with minimum_master_nodes set to 2, the cluster
+			stayed reachable after shutting down one (even if it's master).
+			*	miminum_master_nodes = (number of master-eligible nodes / 2 + 1)
+
+
+ Next steps:
+   fuzzy match
+   score by updated_at/created_at
+   parent/child index
+   explore 'routing' option when indexing/searching
+

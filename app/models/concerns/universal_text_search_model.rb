@@ -58,8 +58,9 @@ module UniversalTextSearchModel
 
   # Take a notice on 'routing' flag, which could speed up query
 
-  # prefixed these method names so that they don't crash with mongoid methods.
-  # (When I used the name :update_document, it overrode mongoids'.)
+  # I prefixed these method names so that they don't conflict with mongoid methods.
+  # (When I used the name :update_document, for example, it overrode mongoids' and
+  # and caused unexpected behavior.)
 
   # able to take 'opts' argument is important
   def es_index_document(opts={})
