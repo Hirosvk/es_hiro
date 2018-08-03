@@ -3,6 +3,7 @@ module UniversalTextSearchModel
 
   included do
     include Elasticsearch::Model
+    field :language, type: String # equivalent to :context
 
   # For the purpose of universal text search, I was wondering if we should have one index field,
   # and all documents are stored under it, then when we search, it searches one index;
@@ -57,23 +58,23 @@ module UniversalTextSearchModel
   end
 
   private
-
-  # Take a notice on 'routing' flag, which could speed up query
-
   # I prefixed these method names with 'es_' so that they don't conflict with mongoid methods.
   # (When I used the name :update_document, for example, it overrode mongoids' and
   # and caused unexpected behavior.)
 
-  # able to take 'opts' argument is important
+  # Fails if it doesn't take 'opts' argument.
+  # Elasticsearch skips index when un-indexed value is updated;
+  # That kind of makes sense, but it still ignores when meta field is updated here
+  # i.e. routing and doesn't update it unless index value is updated.
   def es_index_document(opts={})
-    __elasticsearch__.index_document(opts)
+    __elasticsearch__.index_document(opts.merge(routing: language))
   end
 
   def es_update_document(opts={})
-    __elasticsearch__.update_document(opts)
+    __elasticsearch__.update_document(opts.merge(routing: language))
   end
 
   def es_delete_document(opts={})
-    __elasticsearch__.delete_document(opts)
+    __elasticsearch__.delete_document(opts.merge(routing: language))
   end
 end
