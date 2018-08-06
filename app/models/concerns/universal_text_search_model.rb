@@ -65,7 +65,7 @@ module UniversalTextSearchModel
   # Fails if it doesn't take 'opts' argument.
   # Elasticsearch skips index when un-indexed value is updated;
   # That kind of makes sense, but it still ignores when meta field is updated here
-  # i.e. routing and doesn't update it unless index value is updated.
+  # i.e. routing and doesn't update it unless indexed values are updated.
   def es_index_document(opts={})
     __elasticsearch__.index_document(opts.merge(routing: language))
   end

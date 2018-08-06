@@ -5,27 +5,49 @@ class UniversalTextSearch
   # #records that can be a problem.
   SEARCH_CLASSES = [User, Note, Resource]
 
-  def self.simple_text_search(text, opts={})
-    # opts can include meta fields such as routing
+  # A good summary of full text query types
+  # https://www.elastic.co/guide/en/elasticsearch/reference/current/full-text-queries.html
+  # I imagine that we would need to use multi_match query for universal search
 
-    # searches all text & keyword fields in all classes (or indices)
-    # More about simple_query_string: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-simple-query-string-query.html
-    query = {
+  # Note on method signature:
+  # .results.total always show the accurate total but only includes 10 documents
+
+  #   UniversalTextSearch.match(:bio, 'society', {size: 50, routing: 'vulcan'})
+  def self.match(field, value, opts={})
+    q = {
       query: {
-        simple_query_string: {
-          query: text
+        match: {
+          field => {
+            query: value
+#            fuzziness: 0, 1, 2, 'AUTO'
+#            auto_generate_synonyms_phrase_query: true/false
+          }
         }
-      },
+      }
     }
-    Elasticsearch::Model.search(query, SEARCH_CLASSES, opts)
+    Elasticsearch::Model.search(q, SEARCH_CLASSES, opts)
   end
 
-  def self.term_search(field_value, opts={})
+  def self.multi_match(text, fuzziness, size)
+    q = {
+      query: {
+        multi_match: {
+          query: text,
+          fields: ['bio', 'body', 'title'],
+          fuzziness: fuzziness,
+          type: 'best_fields' # default
+        }
+      }
+    }
+    Elasticsearch::Model.search(q, SEARCH_CLASSES, {size: size})
+  end
+
+  def self.term_search(field, value, opts={})
     # searches exact match
     # More about term search: https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-term-query.html
     query = {
       query: {
-        term: field_value
+        term: {field => value}
       }
     }
     Elasticsearch::Model.search(query, SEARCH_CLASSES, opts)

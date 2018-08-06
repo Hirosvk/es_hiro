@@ -97,7 +97,7 @@ Elasticsearch server (set up 3 servers; see Notes.5):
 			---
 			parent-join mapping - excerpt from documentation;
 			The join field shouldn’t be used like joins in a relation database. In Elasticsearch the key to good performance is to de-normalize your data into documents. Each join field, has_child or has_parent query adds a significant tax to your query performance.
-			The only case where the join field makes sense is if your data contains a one-to-many relationship where one entity significantly outnumbers the other entity. 
+			The only case where the join field makes sense is if your data contains a one-to-many relationship where one entity significantly outnumbers the other entity.
 			---
 			This was about parent-join. Finding out that 'nested' datatype treats the data in array form anyways,
 			I can't see neither nested or array database provides good search performance.
@@ -112,9 +112,24 @@ Elasticsearch server (set up 3 servers; see Notes.5):
 			Documentation for logging was particularly bad. I could not figure out how to change log level to examine what
 			goes into Elasticsearch when documents are indexed.
 
+		9.  Query:
+			Our needs
+				- multi-index, multi-fields search.
+				- scored by updated_date
+				- title scores higher than body
+				- scored by social actions
+				- auto fill?? maybe later
+
+			How to meet the needs
+				- multi_match best_fields or most_fields?
+				- How does tie_breaker work?
+				- how to use 'boost' (boosting in index time is deprecated)
+
+		10. Performance:
+			Is cutoff frequency something we would use?
+
 Next steps:
-	fuzzy match
-	score by updated_at/created_at
-	modularize index/mapping settings
-	multi field search
+	Explore Note.9
+	modularize index/mapping settings (so not have to index :language in all models)
+	pagination
 

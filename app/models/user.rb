@@ -25,7 +25,13 @@ class User
         # text fields are searched through analyzer. keywords are not.
         indexes :firstname, type: 'keyword'
         indexes :lastname, type: 'keyword'
-        indexes :bio, type: 'text'
+        indexes :bio, type: 'text', analyzer: 'english', index_options: 'offsets'
+        # It's important to specify the analyzer. The default, standard analyzer
+        # does not tokenize english words correctly i.e. 'teaches' -> 'teach'
+        #
+        # Default index_options for analyzed string field is 'positions'. I'm not
+        # sure if leveling it up to 'offsets' is necessary, but won't hurt other
+        # than memery/diskspace.
         indexes :language, type: 'keyword'
       end
     # type: 'string' is now deprecated.
