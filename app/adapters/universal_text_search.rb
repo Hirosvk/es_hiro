@@ -13,33 +13,39 @@ class UniversalTextSearch
   # .results.total always show the accurate total but only includes 10 documents
 
   #   UniversalTextSearch.match(:bio, 'society', {size: 50, routing: 'vulcan'})
-  def self.match(field, value, opts={})
+  def self.match(field, text, opts={}, meta_opts={})
+    default_opts = {
+      query: text,
+      fuzziness: 0, # default
+      auto_generate_synonyms_phrase_query: false # default
+    }
+
     q = {
       query: {
         match: {
-          field => {
-            query: value
-#            fuzziness: 0, 1, 2, 'AUTO'
-#            auto_generate_synonyms_phrase_query: true/false
-          }
+          field => default_opts.merge(opts)
         }
       }
     }
+    opts[:size] ||= 500
     Elasticsearch::Model.search(q, SEARCH_CLASSES, opts)
   end
 
-  def self.multi_match(text, fuzziness, size)
+  def self.multi_match(text, opts={}, meta_opts={})
+    default_opts = {
+      query: text,
+      fields: ['bio', 'body', 'title'],
+      type: 'best_fields', # default
+      fuzziness: 0 # default
+    }
+
     q = {
       query: {
-        multi_match: {
-          query: text,
-          fields: ['bio', 'body', 'title'],
-          fuzziness: fuzziness,
-          type: 'best_fields' # default
-        }
+        multi_match: default_opts.merge(opts)
       }
     }
-    Elasticsearch::Model.search(q, SEARCH_CLASSES, {size: size})
+    meta_opts[:size] ||= 500
+    Elasticsearch::Model.search(q, SEARCH_CLASSES, meta_opts)
   end
 
   def self.term_search(field, value, opts={})
