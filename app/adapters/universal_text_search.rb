@@ -27,10 +27,59 @@ class UniversalTextSearch
     # Elasticsearch::Model.search and Elasticsearch::Model.client.search very are different!
   end
 
+  def self.the_ultimate_search(text, opts={}, custom_meta_opts={})
+    # it should be working .... test more 
+    text_multi_match = {
+      bool: {
+        should: [
+          { match: {bio: {query: text}}},
+          { match: {body: {query: text}}},
+          { match: {title: {query: text, boost: 5}}}
+        ]
+      }
+    }
+
+    date_ranges = [
+      {range: {updated_at: {gte: 30.days.ago, boost: 5}}},
+      {range: {updated_at: {gte: 90.days.ago, lt: 30.days.ago, boost: 2}}}
+    ]
+
+    query = {
+      query: {
+        bool: {
+          must: text_multi_match,
+          should: date_ranges
+        }
+      }
+    }
+
+    meta_opts = default_meta_opts.merge(custom_meta_opts)
+    Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
+  end
+
+
   def self.multi_match(text, opts={}, custom_meta_opts={})
     query = {
       query: {
         multi_match: multi_match_opts(text).merge(opts)
+      }
+    }
+    meta_opts = default_meta_opts.merge(custom_meta_opts)
+    Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
+  end
+
+  def self.multi_match_title_heavy(text, opts={}, custom_meta_opts={})
+    # In 'bool' query, when 'must' field is absent,
+    # it performs an 'or' search of 'should' queries.
+    query = {
+      query: {
+        bool: {
+          should: [
+            { match: {bio: {query: text}}},
+            { match: {body: {query: text}}},
+            { match: {title: {query: text, boost: 3}}}
+          ]
+        }
       }
     }
     meta_opts = default_meta_opts.merge(custom_meta_opts)
@@ -48,8 +97,10 @@ class UniversalTextSearch
         bool: {
           must: {multi_match: multi_match_opts(text).merge(opts)},
           should: [
-            {range: {updated_at: {gte: 30.days.ago, boost: 2}}},
-            {range: {updated_at: {gte: 90.days.ago, lt: 30.days.ago, boost: 1.5}}}
+            # tried with different boost values; totally subjectively, I think these numbers are reasonable.
+            # When implementing a site
+            {range: {updated_at: {gte: 30.days.ago, boost: 5}}},
+            {range: {updated_at: {gte: 90.days.ago, lt: 30.days.ago, boost: 2}}}
           ]
         }
       }
@@ -95,15 +146,12 @@ class UniversalTextSearch
     {
       query: text,
       fields: ['bio', 'body', 'title'],
-      type: 'best_fields', # default
+      type: 'best_fields', # default; think about using most_fields instead
       fuzziness: 0 # default
     }
   end
 
   def self.default_meta_opts
-    {
-      size: 500
-    }
+    { size: 500 }
   end
-
 end

@@ -3,7 +3,6 @@ module UniversalTextSearchModel
 
   included do
     include Elasticsearch::Model
-    field :language, type: String # equivalent to :context
 
     # Indexing of model instances do not happen automatically unless setup manually.
     # Elasticsearch::Callbacks takes care of these operations, but the maintainers of the gem seem
@@ -46,8 +45,6 @@ module UniversalTextSearchModel
         super(name, *args, &block)
       end
     end
-
-
   end
 
   private
