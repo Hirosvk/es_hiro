@@ -122,14 +122,41 @@ Elasticsearch server (set up 3 servers; see Notes.5):
 
 			How to meet the needs
 				- multi_match best_fields or most_fields?
+				- score by the date
 				- How does tie_breaker work?
 				- how to use 'boost' (boosting in index time is deprecated)
+					-> can't figure out the query syntax
 
 		10. Performance:
 			Is cutoff frequency something we would use?
 
 Next steps:
 	Explore Note.9
+	How to deal with comment results -> showing up post w/ score? (too far ahead?)
 	modularize index/mapping settings (so not have to index :language in all models)
 	pagination
 
+
+Presenting
+
+	data types:
+		keyword vs string
+		analyzer kicks in at index time
+
+	mapping:
+		dyanmic: false
+		index declaration & as_indexed_json
+
+	routing:
+		why and how we would use it
+
+	rails model callback:
+		save data to Elasticsearch
+		set this up manually
+
+	one index per model:
+
+	querying:
+		'match' & 'term'
+
+	__elasticsearch__ proxy

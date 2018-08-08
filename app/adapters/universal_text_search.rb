@@ -44,6 +44,31 @@ class UniversalTextSearch
         multi_match: default_opts.merge(opts)
       }
     }
+
+    meta_opts[:size] ||= 500
+    Elasticsearch::Model.search(q, SEARCH_CLASSES, meta_opts)
+  end
+
+  def self.multi_match_boost_language(text, language, opts={}, meta_opts={})
+    default_opts = {
+      query: text,
+      fields: ['bio', 'body', 'title'],
+      type: 'best_fields', # default
+      fuzziness: 0 # default
+    }
+
+#   This query gets all documents that match 'must' clause, and give a boost
+#   to the ones that match 'should' clause.
+#   I tried using 'boost' query with 'positive/negative' properties, but I could
+#   not really get it to work, and I think 'bool' makes clearer query.
+    q = {
+      query: {
+        bool: {
+          must: {multi_match: default_opts.merge(opts)},
+          should: [{match: {language: {query: 'klingon', boost: 2}}}]
+        }
+      }
+    }
     meta_opts[:size] ||= 500
     Elasticsearch::Model.search(q, SEARCH_CLASSES, meta_opts)
   end

@@ -11,6 +11,10 @@ class User
 
   has_many :notes
 
+#  These are inferred from class name, but can be modified or explicitly defined.
+#    index_name "accounts"
+#    document_type "account" # => becomes _type field of the document in ES
+
 # we need to run ES instances at least the number of replicas
 # i.e. with 1 replicas -> 2 ES nodes
 # shards number cannot be reconfigured but replicas can
@@ -21,26 +25,21 @@ class User
     # It seems to respect what as_indexed_json returns more than what's specified here.
     # ES is supposed to automatically detect types.
 
-      mappings dynamic: false do
-        # text fields are searched through analyzer. keywords are not.
-        indexes :firstname, type: 'keyword'
-        indexes :lastname, type: 'keyword'
-        indexes :bio, type: 'text', analyzer: 'english', index_options: 'offsets'
-        # It's important to specify the analyzer. The default, standard analyzer
-        # does not tokenize english words correctly i.e. 'teaches' -> 'teach'
-        #
-        # Default index_options for analyzed string field is 'positions'. I'm not
-        # sure if leveling it up to 'offsets' is necessary, but won't hurt other
-        # than memery/diskspace.
-        indexes :language, type: 'keyword'
-      end
-    # type: 'string' is now deprecated.
+    mappings dynamic: false do
+      # text fields are searched through analyzer. keywords are not.
+      indexes :firstname, type: 'keyword'
+      indexes :lastname, type: 'keyword'
+      indexes :bio, type: 'text', analyzer: 'english', index_options: 'offsets'
+      # It's important to specify the analyzer. The default, standard analyzer
+      # does not tokenize english words correctly i.e. 'teaches' -> 'teach'
+      #
+      # Default index_options for analyzed string field is 'positions'. I'm not
+      # sure if leveling it up to 'offsets' is necessary, but won't hurt other
+      # than memery/diskspace.
+      indexes :language, type: 'keyword'
+    end
   end
 
-
-#  These are inferred from class name, but can be modified or explicitly defined.
-#    index_name "accounts"
-#    document_type "account" # => becomes _type field of the document in ES
 
   def as_indexed_json(opts={})
     # a necessary method for many operations (:import, index_document, etc..)
