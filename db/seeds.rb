@@ -5,11 +5,13 @@ languages = ['romulan', 'klingon', 'vulcan']
 
 resources = []
 30.times do
-  resources << Resource.create!(
+  resource = Resource.create!(
     title: Faker::FamousLastWords.last_words,
     body: LiterateRandomizer.paragraphs(paragraphs: 5),
     language: languages.sample
   )
+  resource.timeless.update(updated_at: (1..1000).to_a.sample.days.ago)
+  resources << resource
 end
 
 1000.times do
@@ -21,12 +23,14 @@ end
     bio: Faker::MichaelScott.quote,
     language: languages.sample
   )
+  user.timeless.update(updated_at: (1..1000).to_a.sample.days.ago)
 
   rand(5).times do
-    Note.create!(
+    note = Note.create!(
       owner: resources.select{|r| r.language == user.language}.sample,
       body: LiterateRandomizer.paragraph,
       language: user.language,
       user_id: user.id)
+    note.timeless.update(updated_at: (1..1000).to_a.sample.days.ago)
   end
 end

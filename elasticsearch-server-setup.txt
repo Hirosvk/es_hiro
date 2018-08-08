@@ -1,4 +1,4 @@
-Web server (Rails/Mongo):
+Web server (Rails/Mongo - not relevant to setting up Elasticsearch on production, this is just not to myself):
 	EC2 with Amazon AMI (ami-0e86606d): t2.micro
 	ruby
 		installed rvm single mode, added rvm to path
@@ -19,13 +19,15 @@ Web server (Rails/Mongo):
 
 		specify production elasticsearch server's info in
 
-Elasticsearch server (set up 3 servers; see Notes.5):
+
+Elasticsearch server (set up 3 servers; see Note.5):
 	EC2
 		Amazon AMI (ami-0e86606d), t2.medium (b/c ES needes some memory capacity)
-			this one has 4G memory. t.micro with 0.5GB memory did not work, and recommended at least 2GB.
-		security group: open both ports 9200 (for connection to web server) & 9300 (connections among nodes) to local access.
+			This one has 4G memory. I tried t.micro (0.5GB memory) and it could not run Elasticsearch. I belive at least 2GB is recommended.
+		security group: open both ports 9200 (for connection to web server) & 9300 (connections among nodes) to local ips.
 
 	Elasticsearch install
+		I couldn't get 'yum install' to find elasticsearch, so I installed from a tar package.
 		wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.2.tar.gz
 		wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.3.2.tar.gz.sha512
 		shasum -a 512 -c elasticsearch-6.3.2.tar.gz.sha512 (should print 'ok' to confirm)
@@ -51,7 +53,7 @@ Elasticsearch server (set up 3 servers; see Notes.5):
 		Left all other as defualt; played around with master eligibility settings, but seems unnecessary (left all to be master-eligible)
 
 	System settings for Elasticsearch
-		When host binding is set other than localhost, elasticsearch automatically runs on production mode and I encountered some issues.
+		When host binding is set other than localhost, elasticsearch automatically runs on production mode. Then I encountered some new issues.
 			file descriptor: error that the open file descriptor value is too low (was 1024). Required to change to at least 65536.
 			Also needed to change vm.max_map_count value, it was too low for ES to run.
 			Change these settings in root:
@@ -64,99 +66,86 @@ Elasticsearch server (set up 3 servers; see Notes.5):
 			then run elasticsearch.
 
 
-	Notes:
-		1.  The 'yellow' status on single-node instance in production is normal; needs to create at least one replica
-			(and extra node to host it) to turn it green
+Notes:
+	1.  The 'yellow' status on single-node instance in production is normal; needs to create at least one replica
+		(and extra node to host it) to turn it green
 
-		2.  There is no need for Elasticsearch EC2 plugin, zen discovery (that comes out of the box) is fine.
+	2.  There is no need for Elasticsearch EC2 plugin, zen discovery (that comes out of the box) is fine.
 
-		3.  50GB of data per shard in a index is recommended (https://discuss.elastic.co/t/too-big-a-shard-vs-too-many-shards/75889)
+	3.  Shard number:
+		50GB of data per shard in a index is recommended (https://discuss.elastic.co/t/too-big-a-shard-vs-too-many-shards/75889).
+		Default shard number is 5.
 
-		4.  Excerpt: Elasticsearch doesn't have master/slave replication for data. See
-			minimum_master_nodes for how cluster state uses it. Data is written first
-			to a "primary" shard and then written to replica shards but all shard that
-			write do about the same amount of work. Elasticsearch moves shards around
-			the cluster on its own and decides which copy is primary all on its own.
-			For the most part forcing search traffic to the replica shards isn't a
-			thing you do.
+	4.  Master/Slave:
+		"Elasticsearch doesn't have master/slave replication for data. See
+		minimum_master_nodes for how cluster state uses it. Data is written first
+		to a "primary" shard and then written to replica shards but all shard that
+		write do about the same amount of work. Elasticsearch moves shards around
+		the cluster on its own and decides which copy is primary all on its own.
+		For the most part forcing search traffic to the replica shards isn't a
+		thing you do."
 
-		5.  I did an experiment on node numbers. (I run one node per server.)
-			For 2 master-eligible nodes running in a cluster, it's recommended to set minimum_master_nodes
-			to 2 to avoid 'split brain' situation. However, when I shut down one of them, the whole cluster fails.
-			When I had 3 master-eligible nodes running with minimum_master_nodes set to 2, the cluster
-			stayed reachable after shutting down one (even if it's master).
-			*	miminum_master_nodes = (number of master-eligible nodes / 2 + 1)
+	5.  I did an experiment on node numbers. (I run one node per server.)
+		For 2 master-eligible nodes running in a cluster, it's recommended to set minimum_master_nodes
+		to 2 to avoid 'split brain' situation. However, when I shut down one of them, the whole cluster fails.
+		I'm guessing that both servers decide that they can't do their job on their own, so just give up.
+
+		When I had 3 master-eligible nodes running with minimum_master_nodes set to 2, the cluster
+		stayed reachable after shutting down one (even if it's master).
+
+		*	miminum_master_nodes = (number of master-eligible nodes / 2 + 1)
 
 
-		6.  Some thoughts on associated models i.e. Resouces - Notes / Posts - comments etc...
-			On universal search on our network, how much weight do we give to comments. For example, the searched keyword
-			ony exists in comments; should we show its parent post in the results?
-			There seem to be some options offered by Elasticsearch for cases like this; parent-join, nested, & array datatypes.
-			However, for the search performance, it seems to make sense to keep separate indeces for parent and chilren.
-			Elasticsearch recommends de-normalize documents for better performance.
-			---
-			parent-join mapping - excerpt from documentation;
-			The join field shouldn’t be used like joins in a relation database. In Elasticsearch the key to good performance is to de-normalize your data into documents. Each join field, has_child or has_parent query adds a significant tax to your query performance.
-			The only case where the join field makes sense is if your data contains a one-to-many relationship where one entity significantly outnumbers the other entity.
-			---
-			This was about parent-join. Finding out that 'nested' datatype treats the data in array form anyways,
-			I can't see neither nested or array database provides good search performance.
+	6.  Some thoughts on associated models i.e. Resouces - Notes / Posts - comments etc...
+		On universal search on our network, what are we going to do with comment results. For example, the searched keyword
+		ony exists in comments; should we show its parent post in the results?
 
-		7.  routing:
-			Reduces impact of searches by only targetting given shard.
-			(shard_num = hash(_routing) % num_primary_shards) So, it doesn't matter at all with one shard.
-			Routing does not filter. Documents with distinct routing values can end up in the same shard.
-			I imagine on our sites, routing value can be the :context, but filtering still needs to happen.
+		There seem to be some options offered by Elasticsearch for cases like this; parent-join, nested, & array datatypes.
+		However, Elasticsearch recommends de-normalize documents for better performance.
+		For the search performance, it seems to make sense to keep separate indeces for parent and chilren.
+		---
+		parent-join mapping - excerpt from documentation;
+		The join field shouldn’t be used like joins in a relation database. In Elasticsearch the key to good performance is to de-normalize your data into documents. Each join field, has_child or has_parent query adds a significant tax to your query performance.
+		The only case where the join field makes sense is if your data contains a one-to-many relationship where one entity significantly outnumbers the other entity.
+		---
+		This was about parent-join. Finding out that 'nested' datatype treats the data in array form anyways,
+		I can't see neither nested or array database provides good search performance, to either.
+		I keep coming back to that, maybe we shouldn't have nested document structure in Elasticsearch.
 
-		8.  logging:
-			Documentation for logging was particularly bad. I could not figure out how to change log level to examine what
-			goes into Elasticsearch when documents are indexed.
+	7.  routing:
+		Reduces impact of searches by only targetting given shard.
+		(shard_num = hash(_routing) % num_primary_shards)
+		Routing does not filter. Documents with distinct routing values can end up in the same shard, and appear in the search.
+		I imagine on our sites, routing value can be the :context, but filtering still needs to happen.
 
-		9.  Query:
-			Our needs
-				- multi-index, multi-fields search.
-				- scored by updated_date
-				- title scores higher than body
-				- scored by social actions
-				- auto fill?? maybe later
+	8.  logging:
+		Documentation for logging was particularly bad. I could not figure out how to change log level to examine what
+		goes into Elasticsearch when documents are indexed.
 
-			How to meet the needs
-				- multi_match best_fields or most_fields?
-				- score by the date
-				- How does tie_breaker work?
-				- how to use 'boost' (boosting in index time is deprecated)
-					-> can't figure out the query syntax
+	9.  Query:
+		Our needs
+			- multi-index, multi-fields search.
+			- scored by updated_date?
+			- title scores higher than body?
+			- scored by social actions?
 
-		10. Performance:
-			Is cutoff frequency something we would use?
+		See app/adapters/universal_text_search.rb.
+		With combination of multi_match, bool, boost, and range query, I think we have solutions all our needs.
+
+	10. Performance:
+		Is cutoff frequency something we would use?
+
+	11. One index per model:
+		For the purpose of universal text search, I was wondering if we should have one index field,
+		and all documents are stored under it, then when we search, it searches one index;
+		or, each class has their own index, and when we search, search multiple indexes (which is supposed to be easily done in ES).
+
+		Found a good guidance here: https://www.elastic.co/blog/index-type-parent-child-join-now-future-in-elasticsearch
+		"Multiple types in the same index really shouldn't be used all that often and one of the few use cases for types is parent child relationships."
+		In fact, Elasticsearch 6.0.0 or later can have only one _type per index
+
 
 Next steps:
-	Explore Note.9
-	How to deal with comment results -> showing up post w/ score? (too far ahead?)
-	modularize index/mapping settings (so not have to index :language in all models)
+	How to deal with comment results -> showing up post
+	modularize index/mapping settings to remove dupicate index settings
 	pagination
-
-
-Presenting
-
-	data types:
-		keyword vs string
-		analyzer kicks in at index time
-
-	mapping:
-		dyanmic: false
-		index declaration & as_indexed_json
-
-	routing:
-		why and how we would use it
-
-	rails model callback:
-		save data to Elasticsearch
-		set this up manually
-
-	one index per model:
-
-	querying:
-		'match' & 'term'
-
-	__elasticsearch__ proxy

@@ -3,8 +3,9 @@ class Resource
   include Mongoid::Timestamps
   include UniversalTextSearchModel
 
-  field :body
-  field :title
+  field :body, type: String
+  field :title, type: String
+  field :language, type: String # equivalent to :context
 
   has_many :notes, as: :owner
 
@@ -13,10 +14,11 @@ class Resource
       indexes :body, type: 'text', analyzer: 'english', index_options: 'offsets'
       indexes :title, type: 'text', analyzer: 'english', index_options: 'offsets'
       indexes :language, type: 'keyword'
+      indexes :updated_at, type: 'date'
     end
   end
 
   def as_indexed_json(opts={})
-    as_json(opts.merge(only: [:body, :title, :language]))
+    as_json(opts.merge(only: [:body, :title, :language, :updated_at]))
   end
 end
