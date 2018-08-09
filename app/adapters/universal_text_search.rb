@@ -10,7 +10,7 @@ class UniversalTextSearch
   # Examples:
   #   uts = UniversalTextSearch.match(:bio, 'society', {fuzziness: 'AUTO'}, {size: 10})
   #   uts.results.total         => 31
-  #   uts.results               => Enumerables of 'Results' object is a that shows the content and metadata of the document
+  #   uts.results               => Enumerables of 'Results' objects containing the content and metadata of the matched documents
   #   uts.resutls.results.count => 10
   #   uts.records               => Mongo documents
 
@@ -96,7 +96,7 @@ class UniversalTextSearch
   end
 
   def self.the_ultimate_search(text, language, opts={}, custom_meta_opts={})
-    # match text in either of :bio, :body, or :title; match & routed by the language; boost by the dates
+    # match text in multiple fields; match & routed by the language; boost by the dates
     text_multi_match = {
       bool: {
         should: [
