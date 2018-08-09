@@ -95,22 +95,24 @@ Notes:
 
 		*	miminum_master_nodes = (number of master-eligible nodes / 2 + 1)
 
-
 	6.  Some thoughts on associated models i.e. Resouces - Notes / Posts - comments etc...
 		On universal search on our network, what are we going to do with comment results. For example, the searched keyword
-		ony exists in comments; should we show its parent post in the results?
+		ony exists in comments; should we show its parent post in the results? How to score the results to reflect that?
 
-		There seem to be some options offered by Elasticsearch for cases like this; parent-join, nested, & array datatypes.
-		However, Elasticsearch recommends de-normalize documents for better performance.
-		For the search performance, it seems to make sense to keep separate indeces for parent and chilren.
-		---
-		parent-join mapping - excerpt from documentation;
-		The join field shouldn’t be used like joins in a relation database. In Elasticsearch the key to good performance is to de-normalize your data into documents. Each join field, has_child or has_parent query adds a significant tax to your query performance.
-		The only case where the join field makes sense is if your data contains a one-to-many relationship where one entity significantly outnumbers the other entity.
-		---
-		This was about parent-join. Finding out that 'nested' datatype treats the data in array form anyways,
-		I can't see neither nested or array database provides good search performance, to either.
-		I keep coming back to that, maybe we shouldn't have nested document structure in Elasticsearch.
+		There seem to be some options offered by Elasticsearch for cases like this; parent-join, nested, & array datatypes,
+		But Elasticsearch recommends de-normalize documents for better performance, and though I haven't found a page
+		saying this exactly, I'm guessing that flatter document structure also yields faster query.
+
+		Parent-join:
+		"The join field shouldn’t be used like joins in a relation database. In Elasticsearch the key to good performance is to de-normalize your data into documents. Each join field, has_child or has_parent query adds a significant tax to your query performance.
+		The only case where the join field makes sense is if your data contains a one-to-many relationship where one entity significantly outnumbers the other entity."
+
+		Nested & Array Datatypes:
+		As far as I understand, array query is usually inefficient. Nested datatype in Elasticsearch also treats the data in
+		as array anyways, so I guess neither nested or array database provides good search performance.
+
+		In our case, I'm thinking that we should have flat index structures of all content models. On our first iteration,
+		we could implement a shallow search where we don't query nested or associated content.
 
 	7.  routing:
 		Reduces impact of searches by only targetting given shard.
@@ -146,6 +148,5 @@ Notes:
 
 
 Next steps:
-	How to deal with comment results -> showing up post
-	modularize index/mapping settings to remove dupicate index settings
+	modularize index/mapping settings to remove dupicate index settings across models
 	pagination
