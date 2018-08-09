@@ -27,41 +27,33 @@ class UniversalTextSearch
     # Elasticsearch::Model.search and Elasticsearch::Model.client.search very are different!
   end
 
-  def self.the_ultimate_search(text, opts={}, custom_meta_opts={})
-    # it should be working .... test more 
-    text_multi_match = {
-      bool: {
-        should: [
-          { match: {bio: {query: text}}},
-          { match: {body: {query: text}}},
-          { match: {title: {query: text, boost: 5}}}
-        ]
-      }
-    }
-
-    date_ranges = [
-      {range: {updated_at: {gte: 30.days.ago, boost: 5}}},
-      {range: {updated_at: {gte: 90.days.ago, lt: 30.days.ago, boost: 2}}}
-    ]
-
-    query = {
-      query: {
-        bool: {
-          must: text_multi_match,
-          should: date_ranges
-        }
-      }
-    }
-
-    meta_opts = default_meta_opts.merge(custom_meta_opts)
-    Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
-  end
-
-
   def self.multi_match(text, opts={}, custom_meta_opts={})
     query = {
       query: {
         multi_match: multi_match_opts(text).merge(opts)
+      }
+    }
+    meta_opts = default_meta_opts.merge(custom_meta_opts)
+    Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
+  end
+
+  def self.multi_match_recent(text, opts={}, custom_meta_opts={})
+    # This query gets all documents that match 'must' clause, and give a boost
+    # to the ones that match 'should' clause.
+    # I tried using 'boost' query with 'positive/negative' properties, but I could
+    # not get it to work, and I think using 'bool' with 'boost' property like this
+    # makes a clearer query.
+    query = {
+      query: {
+        bool: {
+          must: {multi_match: multi_match_opts(text).merge(opts)},
+          should: [
+            # tried with different boost values; totally subjectively, I think these numbers are reasonable.
+            # When implementing a site
+            {range: {updated_at: {gte: 30.days.ago, boost: 5}}},
+            {range: {updated_at: {gte: 90.days.ago, lt: 30.days.ago, boost: 2}}}
+          ]
+        }
       }
     }
     meta_opts = default_meta_opts.merge(custom_meta_opts)
@@ -86,29 +78,6 @@ class UniversalTextSearch
     Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
   end
 
-  def self.multi_match_recent(text, opts={}, custom_meta_opts={})
-    # This query gets all documents that match 'must' clause, and give a boost
-    # to the ones that match 'should' clause.
-    # I tried using 'boost' query with 'positive/negative' properties, but I could
-    # not really get it to work, and I think using 'bool' with 'boost' property like this
-    # makes clearer query.
-    query = {
-      query: {
-        bool: {
-          must: {multi_match: multi_match_opts(text).merge(opts)},
-          should: [
-            # tried with different boost values; totally subjectively, I think these numbers are reasonable.
-            # When implementing a site
-            {range: {updated_at: {gte: 30.days.ago, boost: 5}}},
-            {range: {updated_at: {gte: 90.days.ago, lt: 30.days.ago, boost: 2}}}
-          ]
-        }
-      }
-    }
-    meta_opts = default_meta_opts.merge(custom_meta_opts)
-    Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
-  end
-
   def self.multi_match_by_language(text, language, opts={}, custom_meta_opts={})
     query = {
       query: {
@@ -122,6 +91,43 @@ class UniversalTextSearch
     }
     meta_opts = default_meta_opts.merge(custom_meta_opts)
     # targetting only the shard that contains documents with this language
+    meta_opts[:routing] = language
+    Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
+  end
+
+  def self.the_ultimate_search(text, language, opts={}, custom_meta_opts={})
+    # match text in either of :bio, :body, or :title; match & routed by the language; boost by the dates
+    text_multi_match = {
+      bool: {
+        should: [
+          { match: {bio: {query: text}}},
+          { match: {body: {query: text}}},
+          { match: {title: {query: text, boost: 5}}}
+        ]
+      }
+    }
+
+    language_match = {
+      match: {language: language}
+    }
+
+    boost_recent = [
+      {range: {updated_at: {gte: 30.days.ago, boost: 5}}},
+      {range: {updated_at: {gte: 90.days.ago, lt: 30.days.ago, boost: 2}}}
+    ]
+
+    query = {
+      query: {
+        bool: {
+          must: {
+            bool: { must: [text_multi_match, language_match] }}
+          },
+          should: boost_recent
+        }
+      }
+    }
+
+    meta_opts = default_meta_opts.merge(custom_meta_opts)
     meta_opts[:routing] = language
     Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
   end
