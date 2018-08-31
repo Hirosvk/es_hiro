@@ -14,6 +14,10 @@ class UniversalTextSearch
   #   uts.resutls.results.count => 10
   #   uts.records               => Mongo documents
 
+  def self.language_options
+    ['romulan', 'klingon', 'vulcan']
+  end
+
   def self.match(field, text, opts={}, custom_meta_opts={})
     query = {
       query: {
@@ -83,20 +87,17 @@ class UniversalTextSearch
       query: {
         bool: {
           must: [
-            {multi_match: multi_match_opts(text).merge(opts)},
-            {term: {language: language}}
+            {multi_match: multi_match_opts(text).merge(opts)}
           ]
         }
       }
     }
-    meta_opts = default_meta_opts.merge(custom_meta_opts)
-    # targetting only the shard that contains documents with this language
-    meta_opts[:routing] = language
+    meta_opts = default_meta_opts(language).merge(custom_meta_opts)
     Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
   end
 
   def self.the_ultimate_search(text, language, opts={}, custom_meta_opts={})
-    # match text in multiple fields; match & routed by the language; boost by the dates
+    # match text in multiple fields; match by the language; boost by the dates
     text_multi_match = {
       bool: {
         should: [
@@ -107,10 +108,6 @@ class UniversalTextSearch
       }
     }
 
-    language_match = {
-      match: {language: language}
-    }
-
     boost_recent = [
       {range: {updated_at: {gte: 30.days.ago, boost: 5}}},
       {range: {updated_at: {gte: 90.days.ago, lt: 30.days.ago, boost: 2}}}
@@ -119,16 +116,13 @@ class UniversalTextSearch
     query = {
       query: {
         bool: {
-          must: {
-            bool: { must: [text_multi_match, language_match] }}
-          },
+          must: text_multi_match,
           should: boost_recent
         }
       }
     }
 
-    meta_opts = default_meta_opts.merge(custom_meta_opts)
-    meta_opts[:routing] = language
+    meta_opts = default_meta_opts(language).merge(custom_meta_opts)
     Elasticsearch::Model.search(query, SEARCH_CLASSES, meta_opts)
   end
 
@@ -157,7 +151,21 @@ class UniversalTextSearch
     }
   end
 
-  def self.default_meta_opts
-    { size: 500 }
+  def self.default_meta_opts(language=nil)
+    { size: 500,
+      index: target_indices(language)
+    }
   end
+
+  def self.target_indices(languages=nil)
+    languages ||= language_options
+    languages = [languages] unless languages.is_a?(Array)
+
+    languages.map do |lang|
+      SEARCH_CLASSES.map do |klass|
+        "#{lang}_#{klass.name.pluralize.downcase}"
+      end
+    end.flatten
+  end
+
 end

@@ -45,6 +45,47 @@ module UniversalTextSearchModel
         super(name, *args, &block)
       end
     end
+
+    def self.create_index!(opts={})
+      ['romulan', 'klingon', 'vulcan'].each do |lang|
+        index_name = "#{lang}_#{self.name.pluralize.downcase}"
+        __elasticsearch__.create_index!(opts.merge({index: index_name}))
+      end
+    end
+
+    def self.delete_index!(opts={})
+      ['romulan', 'klingon', 'vulcan'].each do |lang|
+        index_name = "#{lang}_#{self.name.pluralize.downcase}"
+        __elasticsearch__.delete_index!(opts.merge({index: index_name}))
+      end
+    end
+
+    # HACK: When there are multiple indices for a model,
+    # (search_result)#records method fails by throing error in
+    # Model::Adapter::Multiple::Records#__type_for_hit.
+    # Basically, it cannot find the correct model
+    # that match the found document. It's not configurable.
+    # The below is my super hack to fool elasticsearch-model, so that #records
+    # method finds the correct model for the found document.
+    def self.index_name
+      IndexName.new(self.name)
+    end
+
+    class IndexName < String
+      def initialize(model_name)
+        @index_name = model_name.pluralize.downcase
+        super(@index_name)
+      end
+
+      def ==(_index_name)
+        return true if super(_index_name)
+        !!_index_name.match(/\w+_#{@index_name}$/)
+      end
+    end
+  end
+
+  def index_name
+    "#{language}_#{self.class.name.pluralize.downcase}"
   end
 
   private
@@ -57,14 +98,14 @@ module UniversalTextSearchModel
   # That kind of makes sense, but it still ignores when meta field is updated here
   # i.e. routing and doesn't update it unless indexed values are updated.
   def es_index_document(opts={})
-    __elasticsearch__.index_document(opts.merge(routing: language))
+    __elasticsearch__.index_document(opts.merge(index: index_name))
   end
 
   def es_update_document(opts={})
-    __elasticsearch__.update_document(opts.merge(routing: language))
+    __elasticsearch__.update_document(opts.merge(index: index_name))
   end
 
   def es_delete_document(opts={})
-    __elasticsearch__.delete_document(opts.merge(routing: language))
+    __elasticsearch__.delete_document(opts.merge(index: index_name))
   end
 end

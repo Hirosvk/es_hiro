@@ -119,6 +119,7 @@ Notes:
 		(shard_num = hash(_routing) % num_primary_shards)
 		Routing does not filter. Documents with distinct routing values can end up in the same shard, and appear in the search.
 		I imagine on our sites, routing value can be the :context, but filtering still needs to happen.
+		I wonder if, or to what degree, routing causes documents to be unevenly distributed.
 
 	8.  logging:
 		Documentation for logging was particularly bad. I could not figure out how to change log level to examine what
@@ -145,6 +146,29 @@ Notes:
 		Found a good guidance here: https://www.elastic.co/blog/index-type-parent-child-join-now-future-in-elasticsearch
 		"Multiple types in the same index really shouldn't be used all that often and one of the few use cases for types is parent child relationships."
 		In fact, Elasticsearch 6.0.0 or later can have only one _type per index
+
+	12. Scoring:
+		Scoring is based on Term Frequency, Inverse Document Frequency, and length of the field
+		Scoring of documents is performed per shard. Not even per index. However, this shouldn't affect our case because
+		searches would be performed on one shard anyways, using routing.
+		
+		For keyword search, filtering is done first, and scored only based on the filtered documents.
+		In Term search, scoring is pre-calculated.
+
+	13. Replica
+		At index time, a replica shard does the same amount of work as the primary shard. New documents are first indexed on the primary and then on any replicas. Increasing the number of replicas does not change the capacity of the index.
+
+		However, replica shards can serve read requests. If, as is often the case, your index is search heavy, you can increase search performance by increasing the number of replicas, but only if you also add extra hardware.
+
+		When there are 1 replica & 3 shards, for example, primiary/replica shards might not be distributed evenly
+		More about replica/shard allocation
+		https://discuss.elastic.co/t/unexpected-and-uneven-per-index-shard-allocation/81221/4
+
+
+	14. What if we create separate index for each context while each index consists of one (or few) shard?
+	    Search across context is uncommon or non-existent
+	    Routing might cause uneven distribution of documents across shards.
+	    This is also suggested here https://discuss.elastic.co/t/strict-routing-only-documents-with-one-routing-key-per-shard/104360
 
 
 Next steps:

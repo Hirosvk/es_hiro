@@ -16,7 +16,7 @@ class User
 #   index_name "accounts"
 #   document_type "account" # => becomes _type field of the document in ES
 
-  settings index: {number_of_shards: 3, number_of_replicas: 1} do
+  settings index: {number_of_shards: 1, number_of_replicas: 1} do
     # :dynamic is set to true by default, which automatically indexes all fields returned by as_indexed_json.
     # However, even when :dynamic is set to false, I found that elasticsearch indexes
     # fields that are not in this decleration anyways.
@@ -34,6 +34,7 @@ class User
 
       # It's important to specify the analyzer for text. The default, standard analyzer
       # does not tokenize english words correctly i.e. 'teaches' -> 'teach'
+      # This might presents issue with MHT sites where many drug names would be mis-analyzed & mis-spelled
       #
       # Default index_options for analyzed string field is 'positions'. I'm not
       # sure if leveling it up to 'offsets' is necessary, and how much it hurts memory/disk space

@@ -1,6 +1,5 @@
-
-[Resource, Note, User].each { |m| m.__elasticsearch__.delete_index! rescue nil}
-[Resource, Note, User].each { |m| m.__elasticsearch__.create_index! }
+[Resource, Note, User].each { |m| m.delete_index! rescue nil}
+[Resource, Note, User].each { |m| m.create_index! }
 languages = ['romulan', 'klingon', 'vulcan']
 
 resources = []
